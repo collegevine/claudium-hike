@@ -7,6 +7,7 @@ Writes directly to /dev/tty. Self-terminates when inference ends.
 import os
 import random
 import signal
+import subprocess
 import sys
 import time
 
@@ -16,6 +17,13 @@ MAX_LIFETIME = 300
 STALE_TIMEOUT = 3  # die if pidfile untouched for this long
 PIDFILE = "/tmp/medium-hike-snake.pid"
 LOGFILE = "/tmp/medium-hike-debug.log"
+
+IN_TMUX = bool(os.environ.get("TMUX"))
+ROW_CACHE_TTL = 0.5
+
+saved_cells = {}     # (row, col) -> original char
+row_cache = {}       # row -> line string
+row_cache_time = {}  # row -> monotonic timestamp
 
 COLORS = [
     "\033[1;35m",
@@ -31,6 +39,39 @@ RESET = "\033[0m"
 def log(msg):
     with open(LOGFILE, "a") as f:
         f.write(f"{time.strftime('%H:%M:%S')} snake: {msg}\n")
+
+
+def capture_row(row):
+    """Capture a terminal row via tmux. Uses cache with TTL."""
+    now = time.monotonic()
+    if row in row_cache and now - row_cache_time[row] < ROW_CACHE_TTL:
+        return row_cache[row]
+    if not IN_TMUX:
+        return ""
+    try:
+        tmux_row = row - 1  # tmux uses 0-based rows
+        result = subprocess.run(
+            ["tmux", "capture-pane", "-p", "-S", str(tmux_row), "-E", str(tmux_row)],
+            capture_output=True, text=True, timeout=1
+        )
+        line = result.stdout.rstrip("\n")
+    except Exception:
+        line = ""
+    row_cache[row] = line
+    row_cache_time[row] = now
+    return line
+
+
+def save_cell(row, col):
+    """Save the original character at (row, col) before overwriting."""
+    if (row, col) in saved_cells:
+        return
+    line = capture_row(row)
+    idx = col - 1  # terminal cols are 1-based
+    if 0 <= idx < len(line):
+        saved_cells[(row, col)] = line[idx]
+    else:
+        saved_cells[(row, col)] = " "
 
 
 def get_terminal_size():
@@ -55,7 +96,8 @@ def cleanup(reason="unknown", *_):
     log(f"cleanup: {reason}")
     write_tty("\033[?25h")
     for r, c in prev_positions:
-        write_tty(f"\033[{r};{c}H ")
+        restore = saved_cells.pop((r, c), " ")
+        write_tty(f"\033[{r};{c}H{restore}")
     write_tty("\033[u")
     sys.exit(0)
 
@@ -110,6 +152,9 @@ body = []
 for i in range(len(TEXT)):
     body.append((head_row, max(1, head_col - i)))
 
+MIN_STRAIGHT = int(len(TEXT) * 0.7)
+steps_since_turn = 0
+
 write_tty("\033[?25l")
 write_tty("\033[s")
 
@@ -130,10 +175,14 @@ while True:
     if random.random() < 0.05:
         cols, rows = get_terminal_size()
 
-    if random.random() < 0.3:
-        dx = random.choice([-1, 0, 0, 1])
-    if random.random() < 0.2:
-        dy = random.choice([-1, -1, 0, 1, 1])
+    steps_since_turn += 1
+    if steps_since_turn >= MIN_STRAIGHT:
+        if random.random() < 0.3:
+            dx = random.choice([-1, 0, 0, 1])
+            steps_since_turn = 0
+        if random.random() < 0.2:
+            dy = random.choice([-1, -1, 0, 1, 1])
+            steps_since_turn = 0
 
     new_row = body[0][0] + dx
     new_col = body[0][1] + dy
@@ -150,11 +199,13 @@ while True:
 
     if prev_positions:
         old_r, old_c = prev_positions[-1]
-        write_tty(f"\033[{old_r};{old_c}H ")
+        restore = saved_cells.pop((old_r, old_c), " ")
+        write_tty(f"\033[{old_r};{old_c}H{restore}")
 
     body = [(new_row, new_col)] + body[:-1]
 
     for i, (r, c) in enumerate(body):
+        save_cell(r, c)
         color = COLORS[i % len(COLORS)]
         write_tty(f"\033[{r};{c}H{color}{TEXT[i]}{RESET}")
 
