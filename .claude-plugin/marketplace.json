@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "claudium-hike",
-      "source": ".",
+      "source": "./",
       "description": "Shows MEDIUM HIKE snaking across the screen during LLM inference"
     }
   ]
