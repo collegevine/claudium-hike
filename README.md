@@ -8,7 +8,7 @@ terminal while Claude is thinking.
 ### Option A: Direct from GitHub
 
 ```
-/plugin marketplace add YOUR_GITHUB_USERNAME/medium-hike-plugin
+/plugin marketplace add collegevine/medium-hike-plugin
 /plugin install medium-hike@medium-hike-plugin
 ```
 
