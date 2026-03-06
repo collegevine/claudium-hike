@@ -8,8 +8,8 @@ terminal while Claude is thinking.
 ### Option A: Direct from GitHub
 
 ```
-/plugin marketplace add collegevine/medium-hike-plugin
-/plugin install medium-hike@medium-hike-plugin
+/plugin marketplace add collegevine/claudium-hike
+/plugin install claudium-hike@claudium-hike
 ```
 
 ### Option B: Local testing

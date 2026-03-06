@@ -1,11 +1,11 @@
 {
-  "name": "medium-hike-plugin",
+  "name": "claudium-hike",
   "owner": {
     "name": "CollegeVine"
   },
   "plugins": [
     {
-      "name": "medium-hike",
+      "name": "claudium-hike",
       "source": ".",
       "description": "Shows MEDIUM HIKE snaking across the screen during LLM inference"
     }
