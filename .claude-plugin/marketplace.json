@@ -1,0 +1,13 @@
+{
+  "name": "medium-hike-plugin",
+  "owner": {
+    "name": "CollegeVine"
+  },
+  "plugins": [
+    {
+      "name": "medium-hike",
+      "source": ".",
+      "description": "Shows MEDIUM HIKE snaking across the screen during LLM inference"
+    }
+  ]
+}
